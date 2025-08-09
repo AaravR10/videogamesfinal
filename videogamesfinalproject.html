@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Block Drawing Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Ubuntu Mono', monospace;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .custom-color-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #colorPicker {
+            width: 50px;
+            height: 50px;
+            border: 3px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: none;
+            padding: 0;
+        }
+
+        #colorPicker:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        #colorPicker.selected {
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .custom-label {
+            color: white;
+            font-size: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .color-block {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .color-block:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .color-block.selected {
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .mode-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-left: 15px;
+        }
+
+        .mode-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .mode-button.delete-mode {
+            background: #f44336;
+        }
+
+        .mode-button.delete-mode:hover {
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        .export-import-container {
+            margin-left: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-container {
+            margin-left: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .toggle-button {
+            background: #8E44AD;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Ubuntu Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+        }
+
+        .toggle-button.active {
+            background: #9B59B6;
+            box-shadow: 0 0 15px rgba(155, 89, 182, 0.6);
+        }
+
+        .export-button, .import-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Ubuntu Mono', monospace;
+            transition: all 0.3s ease;
+        }
+
+        .export-button:hover, .import-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+        }
+
+        .import-button {
+            background: #FF9800;
+        }
+
+        .import-button:hover {
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+        }
+
+        #importModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #2c3e50;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            color: white;
+            font-family: 'Ubuntu Mono', monospace;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 15px;
+            color: #ecf0f1;
+        }
+
+        #importTextarea {
+            width: 100%;
+            height: 200px;
+            background: #34495e;
+            color: white;
+            border: 2px solid #4a5f7a;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        #importTextarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .modal-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Ubuntu Mono', monospace;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .modal-button.primary {
+            background: #27ae60;
+            color: white;
+        }
+
+        .modal-button.secondary {
+            background: #7f8c8d;
+            color: white;
+        }
+
+        .modal-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Ubuntu Mono', monospace;
+            font-weight: bold;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.error {
+            background: #e74c3c;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+        }
+
+        #instructions.hidden {
+            opacity: 0;
+            transform: translateX(-100%);
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        
+        <div id="instructions">
+            <strong>3D Block Drawing Tool</strong><br>
+            • Left click: Place/Delete blocks<br>
+            • Right click + drag: Rotate view<br>
+            • Mouse wheel: Zoom in/out<br>
+            • Select colors below to build
+        </div>
+
+        <div id="ui">
+            <div class="color-palette">
+                <div class="color-block selected" style="background-color: #e74c3c;" data-color="#e74c3c"></div>
+                <div class="color-block" style="background-color: #3498db;" data-color="#3498db"></div>
+                <div class="color-block" style="background-color: #2ecc71;" data-color="#2ecc71"></div>
+                <div class="color-block" style="background-color: #f1c40f;" data-color="#f1c40f"></div>
+                <div class="color-block" style="background-color: #9b59b6;" data-color="#9b59b6"></div>
+                <div class="color-block" style="background-color: #e67e22;" data-color="#e67e22"></div>
+                <div class="color-block" style="background-color: #34495e;" data-color="#34495e"></div>
+                <div class="color-block" style="background-color: #ecf0f1;" data-color="#ecf0f1"></div>
+                <div class="custom-color-container">
+                    <input type="color" id="colorPicker" value="#ff6b9d">
+                    <div class="custom-label">CUSTOM</div>
+                </div>
+                <button id="modeButton" class="mode-button">BUILD MODE</button>
+                <div class="export-import-container">
+                    <button id="exportButton" class="export-button">EXPORT</button>
+                    <button id="importButton" class="import-button">IMPORT</button>
+                </div>
+                <div class="toggle-container">
+                    <button id="toggleInstructions" class="toggle-button">HIDE UI</button>
+                    <button id="togglePlatform" class="toggle-button">HIDE BASE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- import modal -->
+        <div id="importModal">
+            <div class="modal-content">
+                <h3>Import Drawing</h3>
+                <textarea id="importTextarea" placeholder="Paste your JSON drawing data here..."></textarea>
+                <div class="modal-buttons">
+                    <button id="cancelImport" class="modal-button secondary">Cancel</button>
+                    <button id="confirmImport" class="modal-button primary">Import</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- notification -->
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+            // global variables
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let selectedColor = '#e74c3c';
+        let isDeleteMode = false;
+        let placedBlocks = [];
+        let platform, gridHelper;
+        let isMouseDown = false;
+        let mouseDownButton = 0;
+        let instructionsVisible = true;
+        let platformVisible = true;
+
+            // initialize the 3d scene
+        function init() {
+                // create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
+                // create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(10, 10, 10);
+            camera.lookAt(0, 0, 0);
+
+                // create renderer
+            const canvas = document.getElementById('canvas');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+                // create raycaster and mouse vector
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+                // add lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+                // create platform
+            createPlatform();
+
+                // setup controls (manual camera controls)
+            setupControls();
+
+                // setup event listeners
+            setupEventListeners();
+
+                // start render loop
+            animate();
+        }
+
+        function createPlatform() {
+            const platformGeometry = new THREE.PlaneGeometry(20, 20);
+            const platformMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xcccccc,
+                transparent: true,
+                opacity: 0.8
+            });
+            platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.rotation.x = -Math.PI / 2;
+            platform.receiveShadow = true;
+            scene.add(platform);
+
+                // add grid lines to platform
+            gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x888888);
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.3;
+            scene.add(gridHelper);
+        }
+
+        function setupControls() {
+            let isRotating = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+                canvas.addEventListener('mousedown', (event) => {
+                    isMouseDown = true;
+                    mouseDownButton = event.button;
+                
+                    if (event.button === 2) { // right mouse button
+                        isRotating = true;
+                        previousMousePosition = { x: event.clientX, y: event.clientY };
+                    }
+                });
+
+            canvas.addEventListener('mousemove', (event) => {
+                if (isRotating && isMouseDown) {
+                    const deltaMove = {
+                        x: event.clientX - previousMousePosition.x,
+                        y: event.clientY - previousMousePosition.y
+                    };
+
+                    const spherical = new THREE.Spherical();
+                    spherical.setFromVector3(camera.position);
+                    
+                    spherical.theta -= deltaMove.x * 0.01;
+                    spherical.phi += deltaMove.y * 0.01;
+                    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+                    camera.position.setFromSpherical(spherical);
+                    camera.lookAt(0, 0, 0);
+
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                }
+            });
+
+                canvas.addEventListener('mouseup', (event) => {
+                    if (event.button === 0 && isMouseDown && mouseDownButton === 0) { // left mouse button
+                        handleBlockPlacement(event);
+                    }
+                    isMouseDown = false;
+                    isRotating = false;
+                });
+
+            canvas.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                
+                    // limit zoom distance
+                const distance = camera.position.length();
+                if (distance < 5) camera.position.setLength(5);
+                if (distance > 50) camera.position.setLength(50);
+            });
+
+                // prevent context menu on right click
+            canvas.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+        }
+
+        function setupEventListeners() {
+                // color selection
+            document.querySelectorAll('.color-block').forEach(block => {
+                block.addEventListener('click', (e) => {
+                    document.querySelectorAll('.color-block').forEach(b => b.classList.remove('selected'));
+                    document.getElementById('colorPicker').classList.remove('selected');
+                    e.target.classList.add('selected');
+                    selectedColor = e.target.dataset.color;
+                });
+            });
+
+                // custom color picker
+            const colorPicker = document.getElementById('colorPicker');
+            colorPicker.addEventListener('click', () => {
+                document.querySelectorAll('.color-block').forEach(b => b.classList.remove('selected'));
+                colorPicker.classList.add('selected');
+                selectedColor = colorPicker.value;
+            });
+
+            colorPicker.addEventListener('input', (e) => {
+                document.querySelectorAll('.color-block').forEach(b => b.classList.remove('selected'));
+                colorPicker.classList.add('selected');
+                selectedColor = e.target.value;
+            });
+
+                // export functionality
+            document.getElementById('exportButton').addEventListener('click', () => {
+                exportDrawing();
+            });
+
+                // import functionality
+            document.getElementById('importButton').addEventListener('click', () => {
+                document.getElementById('importModal').style.display = 'flex';
+            });
+
+            document.getElementById('cancelImport').addEventListener('click', () => {
+                document.getElementById('importModal').style.display = 'none';
+                document.getElementById('importTextarea').value = '';
+            });
+
+                // toggle instructions
+            document.getElementById('toggleInstructions').addEventListener('click', () => {
+                instructionsVisible = !instructionsVisible;
+                const instructions = document.getElementById('instructions');
+                const button = document.getElementById('toggleInstructions');
+                
+                if (instructionsVisible) {
+                    instructions.classList.remove('hidden');
+                    button.textContent = 'HIDE UI';
+                    button.classList.remove('active');
+                } else {
+                    instructions.classList.add('hidden');
+                    button.textContent = 'SHOW UI';
+                    button.classList.add('active');
+                }
+            });
+
+                // toggle platform visibility
+            document.getElementById('togglePlatform').addEventListener('click', () => {
+                platformVisible = !platformVisible;
+                const button = document.getElementById('togglePlatform');
+                
+                if (platformVisible) {
+                    platform.material.opacity = 0.8;
+                    gridHelper.material.opacity = 0.3;
+                    button.textContent = 'HIDE BASE';
+                    button.classList.remove('active');
+                } else {
+                    platform.material.opacity = 0;
+                    gridHelper.material.opacity = 0;
+                    button.textContent = 'SHOW BASE';
+                    button.classList.add('active');
+                }
+            });
+
+            document.getElementById('confirmImport').addEventListener('click', () => {
+                const jsonData = document.getElementById('importTextarea').value.trim();
+                if (jsonData) {
+                    importDrawing(jsonData);
+                }
+                document.getElementById('importModal').style.display = 'none';
+                document.getElementById('importTextarea').value = '';
+            });
+
+                // mode toggle
+            document.getElementById('modeButton').addEventListener('click', () => {
+                isDeleteMode = !isDeleteMode;
+                const button = document.getElementById('modeButton');
+                if (isDeleteMode) {
+                    button.textContent = 'DELETE MODE';
+                    button.classList.add('delete-mode');
+                } else {
+                    button.textContent = 'BUILD MODE';
+                    button.classList.remove('delete-mode');
+                }
+            });
+
+                // window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function handleBlockPlacement(event) {
+                // calculate mouse position in normalized device coordinates
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                // update raycaster
+            raycaster.setFromCamera(mouse, camera);
+
+            if (isDeleteMode) {
+                    // delete mode - check for intersection with placed blocks
+                const intersects = raycaster.intersectObjects(placedBlocks);
+                if (intersects.length > 0) {
+                    const blockToRemove = intersects[0].object;
+                    scene.remove(blockToRemove);
+                    placedBlocks = placedBlocks.filter(block => block !== blockToRemove);
+                }
+            } else {
+                    // build mode - place new block
+                const intersectObjects = [platform, ...placedBlocks];
+                const intersects = raycaster.intersectObjects(intersectObjects);
+                
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+                    const position = new THREE.Vector3();
+                    
+                        // calculate position for new block
+                        if (intersect.object === platform) {
+                            // snap to grid on platform
+                        position.x = Math.round(intersect.point.x);
+                        position.y = 0.5;
+                        position.z = Math.round(intersect.point.z);
+                    } else {
+                            // stack on top of existing block
+                        const normal = intersect.face.normal.clone();
+                        normal.transformDirection(intersect.object.matrixWorld);
+                        position.copy(intersect.object.position).add(normal);
+                    }
+
+                        // check if position is already occupied
+                    const isOccupied = placedBlocks.some(block => 
+                        block.position.distanceTo(position) < 0.1
+                    );
+
+                    if (!isOccupied) {
+                        createBlock(position, selectedColor);
+                    }
+                }
+            }
+        }
+
+        function createBlock(position, color) {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshLambertMaterial({ color: color });
+            const block = new THREE.Mesh(geometry, material);
+            
+            block.position.copy(position);
+            block.castShadow = true;
+            block.receiveShadow = true;
+            
+            scene.add(block);
+            placedBlocks.push(block);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function exportDrawing() {
+            const drawingData = {
+                version: "1.0",
+                timestamp: new Date().toISOString(),
+                blocks: placedBlocks.map(block => ({
+                    position: {
+                        x: block.position.x,
+                        y: block.position.y,
+                        z: block.position.z
+                    },
+                    color: '#' + block.material.color.getHexString()
+                }))
+            };
+
+            const jsonString = JSON.stringify(drawingData, null, 2);
+            
+                // copy to clipboard
+            navigator.clipboard.writeText(jsonString).then(() => {
+                showNotification('Drawing exported to clipboard!', 'success');
+            }).catch(() => {
+                    // fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = jsonString;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification('Drawing exported to clipboard!', 'success');
+            });
+        }
+
+        function importDrawing(jsonString) {
+            try {
+                const drawingData = JSON.parse(jsonString);
+                
+                if (!drawingData.blocks || !Array.isArray(drawingData.blocks)) {
+                    throw new Error('Invalid drawing format');
+                }
+
+                    // clear existing blocks
+                placedBlocks.forEach(block => scene.remove(block));
+                placedBlocks = [];
+
+                    // import blocks
+                drawingData.blocks.forEach(blockData => {
+                    if (blockData.position && blockData.color) {
+                        const position = new THREE.Vector3(
+                            blockData.position.x,
+                            blockData.position.y,
+                            blockData.position.z
+                        );
+                        createBlock(position, blockData.color);
+                    }
+                });
+
+                showNotification(`Imported ${drawingData.blocks.length} blocks!`, 'success');
+                
+            } catch (error) {
+                showNotification('Error importing drawing: Invalid JSON format', 'error');
+                console.error('Import error:', error);
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+            // start the application
+        init();
+    </script>
+</body>
+</html>
